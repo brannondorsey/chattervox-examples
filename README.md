@@ -100,11 +100,11 @@ See [here](https://newsapi.org/sources) for a complete list of all 138 news sour
 
 You'll notice each time you run `news/get_headlines.py` you receive probably receive the same headlines over and over again. While these headlines are updated frequently, they aren't likely going to change within a few minutes. What good is a news broadcast if it just repeats itself over and over again? What we really want to do is broadcast only new news!
 
-We can achieve this by appending every news headline we've ever seen to a file, and then use this file to filter out headlines we've already seen each time we run `news/get_headlines.py`. We'll use the `--exclude` command-line argument in combination with the `tee` command to write our output to both `stdout` and append it to the file we load with `--exclude`. We'll wrap this all up in a `watch` command and pipe the input to `chattervox send` to broadcast any new headlines every two minutes. 
+We can achieve this by appending every news headline to file, and then use this file to filter out headlines we've already seen each time we run `news/get_headlines.py`. We'll use the `--exclude` command-line argument in combination with the `tee` command to write our output to both `stdout` and append it to the file we load the next time we run the command with `--exclude`. We'll wrap this all up in a `watch` command and prepend a timestamp to each headline with `sed` before using `chattervox send` to broadcast any new headlines every two minutes. 
 
 ```bash
-# Get the current headlines, filter out anything we've already seen before (news/exclude.txt), and broadcast new headlines via chattervox send
-watch -n 120 "./news/get_headlines.py --key $API_KEY --category general --country us --exclude news/exclude.txt | tee -a news/exclude.txt" | chattervox send
+# Get the current headlines, filter out anything we've already seen before (news/exclude.txt), prepend a timestamp, and broadcast new headlines via chattervox send
+watch -n 120 "./news/get_headlines.py --key $API_KEY --category general --country us --exclude news/exclude.txt | tee -a news/exclude.txt | sed -e \"s/^/$(date): /g\"" | chattervox send
 ```
 
 <!-- ## Zork
