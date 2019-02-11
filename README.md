@@ -4,9 +4,11 @@ A collection of example applications and use cases for the [Chattervox protocol]
 
 Examples include:
 
-- Low-Fi Time Server: Broadcast a timestamp beacon at regular intervals 
+- [Low-Fi Time Server](#low-fi-time-server): Broadcast a timestamp beacon at regular intervals 
 - `weather/`: [A weather broadcast station](#weather-broadcast-station)
 - `news-headlines/`: [Broadcast breaking news headlines](#news-headlines)
+- [Bash shell](#bash-shell): Use chattervox to control a remote computer via Bash
+- [Zork](#zork): Play [the famous text adventure game](https://en.wikipedia.org/wiki/Zork) over packet radio
 
 ## Low-fi Time Server
 
@@ -22,13 +24,13 @@ Mon Feb  4 21:01:52 EST 2019
 To broadcast a timestamp in this format once per-minute via Chattervox, run:
 
 ```bash
-watch -n 60 date | chattervox send
+watch -n 60 "date | chattervox send"
 ```
 
 If you'd prefer to broadcast an unformatted unix timestamp (e.g. `1549332349`) once every ten seconds, try this:
 
 ```bash
-watch -n 10 "date '+%s'" | chattervox send
+watch -n 10 "date '+%s' | chattervox send"
 ```
 
 ## Weather Broadcast Station
@@ -104,10 +106,82 @@ We can achieve this by appending every news headline to file, and then use this 
 
 ```bash
 # Get the current headlines, filter out anything we've already seen before (news/exclude.txt), prepend a timestamp, and broadcast new headlines via chattervox send
-watch -n 120 "./news/get_headlines.py --key $API_KEY --category general --country us --exclude news/exclude.txt | tee -a news/exclude.txt | sed -e \"s/^/$(date): /g\"" | chattervox send
+watch -n 120 "./news/get_headlines.py --key $API_KEY --category general --country us --exclude news/exclude.txt | tee -a news/exclude.txt | sed -e \"s/^/$(date): /g\" | chattervox send"
 ```
 
+## Bash Shell
+
+In this example, we'll use Chattervox's `exec` and `tty` subcommands to launch and interact with a Bash shell. This will allow us to issue bash commands remotely, like `telnet` over packet radio. While it's not encrypted like `ssh`, input to a Bash shell session over chattervox can be restricted to holders of known and trusted key pairs.
+
+### Bash Server
+
+In this example, we'll run a "Bash server" by spawning a Bash process via `chattervox exec`.
+
+```bash
+chattervox exec --stderr bash
+```
+
+This command does the following:
+
+1. Spawns a Bash shell as a child process of `chattervox`
+2. Pipes all received (RX) chattervox messages to Bash's `stdin`
+3. Transmits (TX) Bash's `stdout` and `stderr`
+
+`chattervox exec` also reads `stdin` from terminal input in addition to received chattervox messages, so you can type Bash commands like`ls -lha`, `w`, and `ps` directly into the console as well.
+
+```bash
+ls -lha
+total 44K
+drwxrwxr-x  7 braxxox braxxox 4.0K Feb  4 22:24 .
+drwxrwxr-x 88 braxxox braxxox 4.0K Feb  4 19:00 ..
+drwxrwxr-x  8 braxxox braxxox 4.0K Feb 10 19:45 .git
+-rw-rw-r--  1 braxxox braxxox    9 Feb  4 22:00 .gitignore
+-rw-rw-r--  1 braxxox braxxox 1.1K Feb  4 22:24 LICENSE
+drwxrwxr-x  2 braxxox braxxox 4.0K Feb  4 22:13 news
+-rw-rw-r--  1 braxxox braxxox 7.0K Feb 10 19:45 README.md
+drwxrwxr-x  2 braxxox braxxox 4.0K Feb  2 17:18 .vscode
+drwxrwxr-x  2 braxxox braxxox 4.0K Feb  2 17:31 weather
+drwxrwxr-x  3 braxxox braxxox 4.0K Feb  3 15:17 zork
+
+w
+ 19:47:43 up 1 day,  8:10,  1 user,  load average: 0.52, 0.48, 0.47
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+braxxox  tty7     :0               Sat11   32:07m  9:30   1.75s /sbin/upstart --user
+
+ps
+  PID TTY          TIME CMD
+ 5297 pts/6    00:00:00 bash
+18748 pts/6    00:00:00 node
+18758 pts/6    00:00:00 bash
+18802 pts/6    00:00:00 ps
+```
+
+Your personal computer can be a scary place to open an experimental shell like this. If you have docker installed, and would prefer to create a Bash shell inside a temporary docker container, instead of your PC, you can do so like this:
+
+```bash
+# download the latest debian image
+docker pull debian
+
+# run bash inside a temporary debian docker container
+chattervox exec --stderr "docker run --rm -i debian bash"
+```
+
+### Bash Client
+
+In order to interface with our "Bash server" over the Chattervox protocol, we'll need to use Chattervox's `tty` subcommand on another computer. For this to work properly, both machines should have eachother's keys saved via `chattervox addkey`.
+
+```
+chattervox tty
+```
+
+This command acts like a teletype interface; Anything typed to the console is broadcast once a newline character is detected, and anything received is printed to the screen.
+
+> __Note__: If you are expecting to see output from a packet sent to a `chattervox exec` or `chattervox tty` command, but are not, try running both commands with the `--allow-all` flag. Received messages may be unexpectedly filtered if they are coming from an unknown or invalid sender.
+
+
 <!-- ## Zork
+
+chattervox exec "docker run -i --rm brannondorsey/zork"
 
 ### Download and Install
 
