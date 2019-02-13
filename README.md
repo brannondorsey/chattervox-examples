@@ -179,11 +179,83 @@ This command acts like a teletype interface; Anything typed to the console is br
 > __Note__: If you are expecting to see output from a packet sent to a `chattervox exec` or `chattervox tty` command, but are not, try running both commands with the `--allow-all` flag. Received messages may be unexpectedly filtered if they are coming from an unknown or invalid sender.
 
 
-<!-- ## Zork
+## Zork
 
-chattervox exec "docker run -i --rm brannondorsey/zork"
+This example allows you to play Zork I between two computers over packet radio, in true timesharing fashion! Originally written for a DEC PDP-10 in 1977, and then later released by [Infocom](http://infocom-if.org) in 1980, Zork is one of the earliest and most famous text adventure games. We'll use Docker to run the game from a "mainframe" computer and play it via another computer acting as a "dumb terminal".
 
-### Download and Install
+![Zork I packaging](.images/zork.jpg)
+
+> Infocom's packaging of Zork I
+
+![PDP-10 Image](.images/PDP-10_1090.jpg)
+
+> KL10-DA 1090 CPU and 6 Memory Modules. This mainframe is a member of the PDP-10 family of computers.
+
+### The "Mainframe"
+
+On one computer, we'll download and run zork from a docker container, using `chattervox exec`. This command will launch Zork using the [frotz Z-machine interpreter](https://github.com/DavidGriffith/frotz) using chattervox data packets as its input and output.
+
+```bash
+# download the Zork docker image
+docker pull brannondorsey/zork
+
+# run Zork I with chattervox exec. This container runs the frotz Infocom emulator
+# with the following docker flags:
+# --init: helps the frotz process catch signals and reaps child processes
+# -i: keep STDIN open even if not attached
+# --rm: remove the docker container on exit
+# -v: create a ~/.zork_save/ directory on your host system and share it with the 
+#     docker container so that zork save files can persist across containers
+chattervox exec "docker run --init -i --rm -v $HOME/.zork_saves:/save brannondorsey/zork"
+```
+
+The following text should be transmitted by chattervox and printed to the screen.
+
+```
+ZORK I: The Great Underground Empire
+Copyright (c) 1981, 1982, 1983 Infocom, Inc. All rights reserved.
+ZORK is a registered trademark of Infocom, Inc.
+Revision 88 / Serial number 840726
+
+West of House
+You are standing in an open field west of a white house, with a boarded front
+door.
+There is a small mailbox here.
+
+>
+```
+
+You can enter commands directly from this terminal, but that's not nearly as fun as actually playing the game from a remote computer.
+
+### The "Dumb Terminal"
+
+We'll communicate with the "mainframe" machine that's running Zork via Chattervox's `tty` subcommand running on another computer. 
+
+```bash
+# run this on another computer that's also got a radio and Chattervox installed
+chattervox tty
+```
+
+The commands you enter in this terminal will now be broadcast to the computer running Zork, and the responses will be sent back and printed to the screen.
+
+```
+open mailbox
+open mailbox # this repeated input text is normal
+Opening the small mailbox reveals a leaflet.
+
+
+read leaflet
+read leaflet
+(Taken)
+"WELCOME TO ZORK!
+
+ZORK is a game of adventure, danger, and low cunning. In it you will explore
+some of the most amazing territory ever seen by mortals. No computer should be
+without one!"
+```
+
+<!-- ### Alternative Install
+hat
 
 ```bash
 # Debian install
@@ -191,14 +263,8 @@ sudo apt-get install frotz
 mkdir zork1 && cd zork1
 curl http://www.infocom-if.org/downloads/zork1.zip > zork1.zip
 unzip zork1.zip && rm zork1.zip
-```
 
-```bash
-# in one terminal
-mkfifo /tmp/pipe
-frotz zork_files/DATA/ZORK1.DAT < /tmp/pipe
 
-# in another terminal
-echo "open mailbox" > /tmp/pipe
+chattervox exec "frotz zork_files/DATA/ZORK1.DAT"
 ``` -->
 
